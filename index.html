@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Темщик — Пацанский Бизнес</title>
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    /* Custom dark theme & animations */
+    body {
+      background: #0a0c0f;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      color: #e0e0e0;
+    }
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      max-width: 480px;
+      margin: 0 auto;
+      background: radial-gradient(circle at 30% 10%, #0f1a1c, #030405);
+      position: relative;
+      overflow: hidden;
+    }
+    .glass {
+      background: rgba(20, 30, 30, 0.75);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(0, 255, 100, 0.15);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+    }
+    .neon-text {
+      color: #9eff00;
+      text-shadow: 0 0 8px #9eff00, 0 0 20px rgba(158, 255, 0, 0.5);
+    }
+    .neon-border {
+      border: 1px solid #9eff00;
+      box-shadow: 0 0 10px #9eff00, inset 0 0 6px #9eff00;
+    }
+    .card-gradient {
+      background: linear-gradient(145deg, #111b1e, #06090b);
+      border: 1px solid #2a3a3a;
+      border-radius: 1.2rem;
+    }
+    .tab-active {
+      color: #9eff00;
+      text-shadow: 0 0 12px #9eff00;
+    }
+    .tab-inactive {
+      color: #6b7a7a;
+    }
+    .tap-button {
+      transition: transform 0.08s ease, filter 0.15s;
+      cursor: pointer;
+      filter: drop-shadow(0 0 18px rgba(158, 255, 0, 0.6));
+    }
+    .tap-button:active {
+      transform: scale(0.92);
+      filter: drop-shadow(0 0 30px #9eff00);
+    }
+    .floating-plus {
+      position: absolute;
+      pointer-events: none;
+      font-weight: 800;
+      font-size: 1.8rem;
+      color: #9eff00;
+      text-shadow: 0 0 12px black, 0 0 20px #9eff00;
+      animation: floatUp 0.8s ease-out forwards;
+      z-index: 999;
+    }
+    @keyframes floatUp {
+      0% { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-70px) scale(1.4); }
+    }
+    .energy-bar {
+      background: #1e2a2a;
+      border-radius: 30px;
+      overflow: hidden;
+      height: 12px;
+      border: 1px solid #2e4a4a;
+    }
+    .energy-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #9eff00, #00cc66);
+      border-radius: 30px;
+      transition: width 0.2s;
+      box-shadow: 0 0 12px #9eff00;
+    }
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 16px;
+    }
+    .modal-card {
+      background: #0f1719;
+      border: 1px solid #9eff00;
+      border-radius: 24px;
+      max-width: 380px;
+      width: 100%;
+      padding: 24px;
+      box-shadow: 0 0 50px rgba(158, 255, 0, 0.3);
+    }
+    .scroll-area {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      flex: 1;
+      padding-bottom: 8px;
+    }
+    .scroll-area::-webkit-scrollbar {
+      width: 4px;
+    }
+    .scroll-area::-webkit-scrollbar-thumb {
+      background: #2e4a4a;
+      border-radius: 10px;
+    }
+    /* Bottom nav fix */
+    .bottom-nav {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 10px 0 14px;
+      background: #0b1113;
+      border-top: 1px solid #1e2a2a;
+    }
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-size: 0.7rem;
+      transition: all 0.1s;
+      gap: 3px;
+      cursor: pointer;
+      padding: 4px 10px;
+      border-radius: 40px;
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- HEADER (common across tabs) -->
+  <div class="px-4 pt-4 pb-2 flex justify-between items-start">
+    <div>
+      <div class="flex items-center gap-2">
+        <i class="fas fa-user-ninja text-[#9eff00] text-xl"></i>
+        <span id="userName" class="text-white font-bold text-lg">Темщик</span>
+      </div>
+      <div id="userRank" class="text-xs text-[#9eff00] tracking-wide">Суетолог-новичок</div>
+    </div>
+    <div class="text-right">
+      <div class="text-[#9eff00] text-2xl font-black" id="balanceDisplay">0</div>
+      <div class="text-[10px] text-gray-400"><span id="profitPerHour">0</span> суеты/час</div>
+    </div>
+  </div>
+
+  <!-- MAIN TABS CONTENT -->
+  <div class="flex-1 overflow-hidden relative">
+    <!-- TAB 1: ГЛАВНАЯ (TAP) -->
+    <div id="tab-main" class="tab-content h-full flex flex-col px-4 pb-2">
+      <div class="flex-1 flex flex-col items-center justify-center relative">
+        <!-- Tap button -->
+        <div id="tapButton" class="tap-button w-56 h-56 rounded-full flex items-center justify-center bg-gradient-to-br from-[#1a2a1a] to-[#0a120a] neon-border relative">
+          <div class="text-7xl">👟</div>
+          <div class="absolute -bottom-2 -right-2 text-3xl">💰</div>
+        </div>
+        <!-- Floating plus container -->
+        <div id="floatContainer" class="absolute inset-0 pointer-events-none"></div>
+      </div>
+      <!-- Energy bar -->
+      <div class="w-full mt-2 mb-4">
+        <div class="flex justify-between text-xs text-gray-400 mb-1 px-1">
+          <span><i class="fas fa-bolt text-[#9eff00] mr-1"></i>Энергия</span>
+          <span id="energyText">1000/1000</span>
+        </div>
+        <div class="energy-bar">
+          <div id="energyFill" class="energy-fill" style="width:100%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: ТЕМЫ (CARDS) -->
+    <div id="tab-themes" class="tab-content h-full hidden flex-col">
+      <div class="scroll-area px-4 pb-2">
+        <h2 class="text-[#9eff00] text-lg font-bold mb-3 flex items-center gap-2"><i class="fas fa-briefcase"></i> Темы для прокачки</h2>
+        <div id="themesList" class="space-y-3"></div>
+      </div>
+    </div>
+
+    <!-- TAB 3: ТЕМКИ & РЕКЛАМА -->
+    <div id="tab-ads" class="tab-content h-full hidden flex-col">
+      <div class="scroll-area px-4 pb-2 space-y-4">
+        <h2 class="text-[#9eff00] text-lg font-bold flex items-center gap-2"><i class="fas fa-gift"></i> Темки & Реклама</h2>
+        <!-- Rewarded ad -->
+        <div class="card-gradient p-4 rounded-2xl flex items-center justify-between">
+          <div>
+            <div class="font-bold text-white">Смотреть рекламу</div>
+            <div class="text-xs text-gray-400">+5,000 суеты & полная энергия</div>
+          </div>
+          <button id="watchAdBtn" class="bg-[#9eff00] text-black font-bold px-5 py-3 rounded-full text-sm shadow-lg shadow-[#9eff00]/30 active:scale-95 transition">Смотреть</button>
+        </div>
+        <!-- Tasks -->
+        <div class="card-gradient p-4 rounded-2xl space-y-3">
+          <div class="flex items-center justify-between">
+            <div><i class="fab fa-telegram text-[#9eff00] mr-2"></i>Подписаться на канал</div>
+            <button id="taskSubscribe" class="bg-[#2a3a3a] text-[#9eff00] px-4 py-2 rounded-full text-xs font-bold active:scale-95">+10,000</button>
+          </div>
+          <div class="flex items-center justify-between">
+            <div><i class="fas fa-user-plus text-[#9eff00] mr-2"></i>Пригласить кента</div>
+            <button id="taskInvite" class="bg-[#2a3a3a] text-[#9eff00] px-4 py-2 rounded-full text-xs font-bold active:scale-95">+25,000</button>
+          </div>
+        </div>
+        <!-- Telegram Stars mock -->
+        <div class="card-gradient p-4 rounded-2xl flex items-center justify-between border border-yellow-500/30">
+          <div>
+            <div class="font-bold text-yellow-400"><i class="fas fa-star mr-1"></i>Авто-Суетолог</div>
+            <div class="text-xs text-gray-400">50 Telegram Stars</div>
+          </div>
+          <button id="buyStarsBtn" class="bg-yellow-500 text-black font-bold px-5 py-3 rounded-full text-sm shadow-lg active:scale-95">Купить</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: ПРАВИЛА & АИРДРОП -->
+    <div id="tab-rules" class="tab-content h-full hidden flex-col">
+      <div class="scroll-area px-4 pb-2 space-y-4">
+        <h2 class="text-[#9eff00] text-lg font-bold flex items-center gap-2"><i class="fas fa-scroll"></i> Правила & Аирдроп</h2>
+        <div class="card-gradient p-5 rounded-2xl space-y-2">
+          <div class="text-white font-bold">Сезонный пул</div>
+          <div class="text-sm text-gray-300">Скоро: раздача среди активных темщиков. Копи суету, прокачивай темы, поднимайся в лидерборде!</div>
+        </div>
+        <button id="tosBtn" class="w-full card-gradient p-4 rounded-2xl text-left flex justify-between items-center">
+          <span><i class="fas fa-file-contract text-[#9eff00] mr-2"></i>Пользовательское соглашение</span>
+          <i class="fas fa-chevron-right text-gray-500"></i>
+        </button>
+        <div class="text-[10px] text-gray-500 text-center mt-4">Версия 0.9.1 • Пацанский бизнес</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAVIGATION -->
+  <div class="bottom-nav">
+    <div class="nav-item tab-active" data-tab="main"><i class="fas fa-home text-xl"></i><span>Главная</span></div>
+    <div class="nav-item tab-inactive" data-tab="themes"><i class="fas fa-layer-group text-xl"></i><span>Темы</span></div>
+    <div class="nav-item tab-inactive" data-tab="ads"><i class="fas fa-gift text-xl"></i><span>Темки</span></div>
+    <div class="nav-item tab-inactive" data-tab="rules"><i class="fas fa-scroll text-xl"></i><span>Правила</span></div>
+  </div>
+</div>
+
+<!-- MODAL for TOS -->
+<div id="tosModal" class="modal-overlay hidden">
+  <div class="modal-card text-white">
+    <h3 class="text-xl font-bold text-[#9eff00] mb-4">Пользовательское соглашение</h3>
+    <p class="text-sm leading-relaxed text-gray-300">Все внутриигровые поинты («Суета») являются исключительно виртуальными игровыми элементами, не имеют денежной ценности и не гарантируют финансовых выплат. Игра создана в развлекательных целях.</p>
+    <button id="closeTos" class="mt-6 w-full bg-[#9eff00] text-black font-bold py-3 rounded-full active:scale-95">Понял</button>
+  </div>
+</div>
+
+<!-- OFFLINE EARNINGS MODAL -->
+<div id="offlineModal" class="modal-overlay hidden">
+  <div class="modal-card text-center">
+    <i class="fas fa-clock text-4xl text-[#9eff00] mb-3"></i>
+    <h3 class="text-xl font-bold text-white mb-2">Пока тебя не было...</h3>
+    <p class="text-gray-300 text-sm mb-4">Твои темы принесли</p>
+    <div id="offlineEarnAmount" class="text-4xl font-black text-[#9eff00] mb-4">+0</div>
+    <p class="text-gray-400 text-xs mb-6">суеты (макс. 3 часа оффлайна)</p>
+    <button id="claimOffline" class="w-full bg-[#9eff00] text-black font-bold py-3 rounded-full active:scale-95">Забрать</button>
+  </div>
+</div>
+
+<script>
+  (function() {
+    // ---------- TELEGRAM WEBAPP ----------
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      if (tg.setHeaderColor) tg.setHeaderColor('#0a0c0f');
+      if (tg.setBackgroundColor) tg.setBackgroundColor('#0a0c0f');
+    }
+
+    // ---------- USER DATA ----------
+    let userName = 'Темщик';
+    if (tg?.initDataUnsafe?.user) {
+      const u = tg.initDataUnsafe.user;
+      userName = u.first_name + (u.last_name ? ' ' + u.last_name : '');
+    }
+    document.getElementById('userName').textContent = userName;
+
+    // ---------- GAME STATE ----------
+    const DEFAULT_STATE = {
+      balance: 0,
+      energy: 1000,
+      maxEnergy: 1000,
+      profitPerHour: 0,
+      lastSaved: Date.now(),
+      themes: [
+        { id: 't1', name: 'Перепродать паль Адидас на Авито', baseIncome: 100, baseCost: 500, level: 0, icon: '👟' },
+        { id: 't2', name: 'Сдать забитый айфон в ломбард', baseIncome: 500, baseCost: 3000, level: 0, icon: '📱' },
+        { id: 't3', name: 'Крутить P2P-связки через связного', baseIncome: 2000, baseCost: 12000, level: 0, icon: '💸' },
+        { id: 't4', name: 'Аренда Гелика на 10 минут для сторис', baseIncome: 10000, baseCost: 60000, level: 0, icon: '🚙' },
+        { id: 't5', name: 'Открыть свой офис в Сити', baseIncome: 50000, baseCost: 300000, level: 0, icon: '🏢' }
+      ],
+      rank: 'Суетолог-новичок'
+    };
+
+    let state = { ...DEFAULT_STATE };
+    // Deep copy themes array
+    state.themes = DEFAULT_STATE.themes.map(t => ({...t}));
+
+    // Load from localStorage
+    function loadState() {
+      const saved = localStorage.getItem('temshchik_state');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          // Merge with defaults to avoid missing fields
+          state = { ...DEFAULT_STATE, ...parsed };
+          state.themes = parsed.themes || DEFAULT_STATE.themes.map(t => ({...t}));
+          // Ensure all themes have level
+          state.themes = state.themes.map((t, idx) => {
+            const def = DEFAULT_STATE.themes[idx] || DEFAULT_STATE.themes[0];
+            return { ...def, ...t, level: t.level || 0 };
+          });
+          state.lastSaved = parsed.lastSaved || Date.now();
+        } catch(e) { console.warn('Load error', e); }
+      }
+      // Recalculate profit
+      recalcProfit();
+      // Set rank
+      updateRank();
+    }
+
+    // Save to localStorage
+    function saveState() {
+      state.lastSaved = Date.now();
+      localStorage.setItem('temshchik_state', JSON.stringify(state));
+    }
+
+    // ---------- UTILS ----------
+    function formatNumber(num) {
+      if (num >= 1e9) return (num / 1e9).toFixed(1) + 'B';
+      if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+      if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
+      return Math.floor(num).toString();
+    }
+
+    function recalcProfit() {
+      let total = 0;
+      state.themes.forEach(t => {
+        if (t.level > 0) {
+          total += t.baseIncome * t.level;
+        }
+      });
+      state.profitPerHour = total;
+    }
+
+    function updateRank() {
+      const b = state.balance;
+      let rank = 'Суетолог-новичок';
+      if (b >= 1e6) rank = 'Мамонт-магнат';
+      else if (b >= 500000) rank = 'Темщик-авторитет';
+      else if (b >= 100000) rank = 'Бизнес-пацан';
+      else if (b >= 25000) rank = 'Суетолог-профи';
+      else if (b >= 5000) rank = 'Крепкий темщик';
+      state.rank = rank;
+      document.getElementById('userRank').textContent = rank;
+    }
+
+    function updateUI() {
+      document.getElementById('balanceDisplay').textContent = formatNumber(state.balance);
+      document.getElementById('profitPerHour').textContent = formatNumber(state.profitPerHour);
+      // Energy
+      const energyPercent = (state.energy / state.maxEnergy) * 100;
+      document.getElementById('energyFill').style.width = energyPercent + '%';
+      document.getElementById('energyText').textContent = `${Math.floor(state.energy)}/${state.maxEnergy}`;
+      // Themes list rendering if tab active
+      renderThemes();
+      updateRank();
+    }
+
+    // ---------- RENDER THEMES ----------
+    function renderThemes() {
+      const container = document.getElementById('themesList');
+      if (!container) return;
+      container.innerHTML = state.themes.map((t, index) => {
+        const income = t.baseIncome * Math.max(1, t.level);
+        const nextCost = t.baseCost * Math.pow(2, t.level);
+        const canAfford = state.balance >= nextCost;
+        return `
+          <div class="card-gradient p-4 rounded-2xl flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="text-3xl">${t.icon}</div>
+              <div>
+                <div class="font-bold text-white text-sm">${t.name}</div>
+                <div class="text-[#9eff00] text-xs">+${formatNumber(income)}/час</div>
+                <div class="text-gray-500 text-[10px]">Ур. ${t.level}</div>
+              </div>
+            </div>
+            <button data-theme-index="${index}" class="theme-buy-btn px-4 py-2 rounded-full text-xs font-bold ${canAfford ? 'bg-[#9eff00] text-black' : 'bg-[#2a3a3a] text-gray-500'} active:scale-95 transition">
+              ${canAfford ? 'Купить' : 'Не хватает'} ${formatNumber(nextCost)}
+            </button>
+          </div>
+        `;
+      }).join('');
+
+      // Attach listeners
+      document.querySelectorAll('.theme-buy-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const idx = parseInt(e.currentTarget.dataset.themeIndex);
+          buyTheme(idx);
+        });
+      });
+    }
+
+    function buyTheme(index) {
+      const t = state.themes[index];
+      const cost = t.baseCost * Math.pow(2, t.level);
+      if (state.balance >= cost) {
+        state.balance -= cost;
+        t.level += 1;
+        recalcProfit();
+        updateUI();
+        saveState();
+        if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+      } else {
+        if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+      }
+    }
+
+    // ---------- TAP HANDLER ----------
+    const tapButton = document.getElementById('tapButton');
+    const floatContainer = document.getElementById('floatContainer');
+
+    function handleTap(e) {
+      e.preventDefault();
+      if (state.energy < 1) {
+        if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+        return;
+      }
+      // Deduct energy
+      state.energy = Math.max(0, state.energy - 1);
+      // Add balance (tap value: 1 + maybe bonus from themes? Just base 1 for simplicity)
+      let tapValue = 1;
+      state.balance += tapValue;
+      recalcProfit();
+      updateUI();
+      saveState();
+
+      // Haptic
+      if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+
+      // Floating text
+      const rect = tapButton.getBoundingClientRect();
+      const containerRect = floatContainer.getBoundingClientRect();
+      let clientX, clientY;
+      if (e.touches) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+      const x = clientX - containerRect.left;
+      const y = clientY - containerRect.top;
+
+      const plus = document.createElement('div');
+      plus.className = 'floating-plus';
+      plus.textContent = `+${tapValue}`;
+      plus.style.left = (x - 20) + 'px';
+      plus.style.top = (y - 40) + 'px';
+      floatContainer.appendChild(plus);
+      setTimeout(() => plus.remove(), 800);
+    }
+
+    tapButton.addEventListener('click', handleTap);
+    tapButton.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      handleTap(e);
+    }, { passive: false });
+
+    // ---------- ENERGY REGEN ----------
+    setInterval(() => {
+      if (state.energy < state.maxEnergy) {
+        state.energy = Math.min(state.maxEnergy, state.energy + 1);
+        updateUI();
+        // Save less frequently
+      }
+    }, 1000);
+
+    // ---------- NAVIGATION ----------
+    const tabs = {
+      main: document.getElementById('tab-main'),
+      themes: document.getElementById('tab-themes'),
+      ads: document.getElementById('tab-ads'),
+      rules: document.getElementById('tab-rules')
+    };
+    const navItems = document.querySelectorAll('.nav-item');
+
+    function switchTab(tabId) {
+      Object.keys(tabs).forEach(key => {
+        tabs[key].classList.toggle('hidden', key !== tabId);
+        tabs[key].classList.toggle('flex', key === tabId);
+      });
+      navItems.forEach(item => {
+        const isActive = item.dataset.tab === tabId;
+        item.classList.toggle('tab-active', isActive);
+        item.classList.toggle('tab-inactive', !isActive);
+      });
+      if (tabId === 'themes') renderThemes();
+    }
+
+    navItems.forEach(item => {
+      item.addEventListener('click', () => {
+        switchTab(item.dataset.tab);
+        if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+      });
+    });
+
+    // ---------- AD REWARD (MOCK) ----------
+    document.getElementById('watchAdBtn').addEventListener('click', function() {
+      if (this.disabled) return;
+      this.disabled = true;
+      this.textContent = 'Загрузка...';
+      setTimeout(() => {
+        state.balance += 5000;
+        state.energy = state.maxEnergy;
+        updateUI();
+        saveState();
+        this.textContent = 'Смотреть';
+        this.disabled = false;
+        if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        alert('+5,000 суеты и полная энергия!');
+      }, 5000);
+      this.textContent = '5 сек...';
+      let seconds = 5;
+      const interval = setInterval(() => {
+        seconds--;
+        if (seconds <= 0) {
+          clearInterval(interval);
+          this.textContent = 'Смотреть';
+        } else {
+          this.textContent = `${seconds} сек...`;
+        }
+      }, 1000);
+    });
+
+    // ---------- TASKS (MOCK) ----------
+    document.getElementById('taskSubscribe').addEventListener('click', () => {
+      state.balance += 10000;
+      updateUI(); saveState();
+      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+      alert('+10,000 суеты за подписку! (демо)');
+    });
+    document.getElementById('taskInvite').addEventListener('click', () => {
+      state.balance += 25000;
+      updateUI(); saveState();
+      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+      alert('+25,000 суеты за приглашение! (демо)');
+    });
+    document.getElementById('buyStarsBtn').addEventListener('click', () => {
+      alert('Мок: покупка Авто-Суетолога за 50 Stars. В реальной игре здесь будет инвойс Telegram.');
+    });
+
+    // ---------- TOS MODAL ----------
+    const tosModal = document.getElementById('tosModal');
+    document.getElementById('tosBtn').addEventListener('click', () => tosModal.classList.remove('hidden'));
+    document.getElementById('closeTos').addEventListener('click', () => tosModal.classList.add('hidden'));
+    tosModal.addEventListener('click', (e) => { if (e.target === tosModal) tosModal.classList.add('hidden'); });
+
+    // ---------- OFFLINE EARNINGS ----------
+    function checkOfflineEarnings() {
+      const now = Date.now();
+      const last = state.lastSaved || now;
+      const diffMs = now - last;
+      const diffHours = diffMs / (1000 * 60 * 60);
+      if (diffHours < 0.01) return; // less than 36 seconds, skip
+      const cappedHours = Math.min(diffHours, 3);
+      const earned = Math.floor(state.profitPerHour * cappedHours);
+      if (earned > 0) {
+        document.getElementById('offlineEarnAmount').textContent = '+' + formatNumber(earned);
+        const modal = document.getElementById('offlineModal');
+        modal.classList.remove('hidden');
+        document.getElementById('claimOffline').onclick = () => {
+          state.balance += earned;
+          updateUI();
+          saveState();
+          modal.classList.add('hidden');
+          if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        };
+      }
+    }
+
+    // ---------- INIT ----------
+    loadState();
+    updateUI();
+    // Offline check after a short delay (to let UI settle)
+    setTimeout(checkOfflineEarnings, 300);
+
+    // Periodic save every 5 seconds
+    setInterval(() => {
+      saveState();
+    }, 5000);
+
+    // Save on page unload
+    window.addEventListener('beforeunload', saveState);
+
+    // Prevent accidental pull-to-refresh
+    document.body.addEventListener('touchmove', (e) => {
+      if (e.target.closest('.scroll-area')) return;
+      e.preventDefault();
+    }, { passive: false });
+
+  })();
+</script>
+</body>
+</html>
