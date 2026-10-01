@@ -151,6 +151,100 @@
       padding: 4px 10px;
       border-radius: 40px;
     }
+/* ===== АНИМАЦИЯ ПЕРСОНАЖА ===== */
+
+/* Пульсация (дыхание) */
+@keyframes breathe {
+  0%, 100% { transform: scale(1) translateY(0); }
+  50% { transform: scale(1.03) translateY(-4px); }
+}
+
+/* Покачивание влево-вправо */
+@keyframes sway {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
+}
+
+/* Реакция на тап */
+@keyframes tapReact {
+  0% { transform: scale(1); }
+  30% { transform: scale(0.9) rotate(-5deg); }
+  60% { transform: scale(1.1) rotate(5deg); }
+  100% { transform: scale(1); }
+}
+
+/* Основной idle-класс (когда персонаж ничего не делает) */
+.character-idle {
+  animation: breathe 3s ease-in-out infinite,
+             sway 4s ease-in-out infinite;
+  filter: drop-shadow(0 0 20px rgba(158, 255, 0, 0.6));
+  transition: filter 0.3s;
+}
+
+/* Класс при тапе */
+.character-tapped {
+  animation: tapReact 0.4s ease-out !important;
+  filter: drop-shadow(0 0 40px rgba(158, 255, 0, 0.9)) brightness(1.2);
+}
+
+/* ===== ЛЕТЯЩИЕ МОНЕТКИ ВОКРУГ ===== */
+.coin-float {
+  position: absolute;
+  font-size: 1.5rem;
+  pointer-events: none;
+  opacity: 0.8;
+  filter: drop-shadow(0 0 8px #9eff00);
+}
+
+.coin-1 {
+  top: 10%;
+  left: 5%;
+  animation: coinOrbit1 4s linear infinite;
+}
+
+.coin-2 {
+  top: 70%;
+  right: 5%;
+  animation: coinOrbit2 5s linear infinite;
+}
+
+.coin-3 {
+  bottom: 10%;
+  left: 15%;
+  animation: coinOrbit3 6s linear infinite;
+}
+
+@keyframes coinOrbit1 {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translate(-30px, -40px) rotate(360deg); opacity: 0; }
+}
+
+@keyframes coinOrbit2 {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translate(30px, -50px) rotate(-360deg); opacity: 0; }
+}
+
+@keyframes coinOrbit3 {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translate(-20px, -30px) rotate(360deg); opacity: 0; }
+}
+
+/* ===== ФОН-ПУЛЬСАЦИЯ ПРИ ТАПЕ ===== */
+@keyframes flashBg {
+  0% { background-color: rgba(158, 255, 0, 0); }
+  50% { background-color: rgba(158, 255, 0, 0.1); }
+  100% { background-color: rgba(158, 255, 0, 0); }
+}
+
+.flash-bg {
+  animation: flashBg 0.3s ease-out;
+}
   </style>
 </head>
 <body>
@@ -176,10 +270,20 @@
     <div id="tab-main" class="tab-content h-full flex flex-col px-4 pb-2">
       <div class="flex-1 flex flex-col items-center justify-center relative">
         <!-- Tap button -->
-        <div id="tapButton" class="tap-button w-56 h-56 rounded-full flex items-center justify-center bg-gradient-to-br from-[#1a2a1a] to-[#0a120a] neon-border relative">
-          <div class="text-7xl">👟</div>
-          <div class="absolute -bottom-2 -right-2 text-3xl">💰</div>
-        </div>
+        <div id="tapButton" class="tap-button w-56 h-56 rounded-full flex items-center justify-center relative">
+  <!-- Неоновое свечение под персонажем -->
+  <div class="absolute inset-0 rounded-full bg-[#9eff00] opacity-20 blur-2xl animate-pulse"></div>
+  
+  <!-- Персонаж -->
+  <img id="mainCharacter" src="img/character.png" 
+       class="character-idle w-52 h-52 object-contain relative z-10" 
+       alt="Темщик">
+  
+  <!-- Летящие монетки вокруг -->
+  <div class="coin-float coin-1">💰</div>
+  <div class="coin-float coin-2">💵</div>
+  <div class="coin-float coin-3">🪙</div>
+</div>
         <!-- Floating plus container -->
         <div id="floatContainer" class="absolute inset-0 pointer-events-none"></div>
       </div>
@@ -454,6 +558,34 @@
         if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
         return;
       }
+function handleTap(e) {
+  e.preventDefault();
+  if (state.energy < 1) {
+    if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+    return;
+  }
+  
+  // ===== РЕАКЦИЯ ПЕРСОНАЖА =====
+  const character = document.getElementById('mainCharacter');
+  const app = document.getElementById('app');
+  
+  if (character) {
+    // Убираем idle-анимацию на время реакции
+    character.classList.remove('character-idle');
+    character.classList.add('character-tapped');
+    
+    // Возвращаем idle через 400 мс
+    setTimeout(() => {
+      character.classList.remove('character-tapped');
+      character.classList.add('character-idle');
+    }, 400);
+  }
+  
+  // Вспышка фона
+  if (app) {
+    app.classList.add('flash-bg');
+    setTimeout(() => app.classList.remove('flash-bg'), 300);
+}
       // Deduct energy
       state.energy = Math.max(0, state.energy - 1);
       // Add balance (tap value: 1 + maybe bonus from themes? Just base 1 for simplicity)
